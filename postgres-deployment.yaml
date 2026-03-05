@@ -1,10 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prefect-postgres
+  namespace: prefect
+spec:
+  selector:
+    app: prefect-postgres
+  ports:
+  - port: 5432
+    targetPort: 5432
+  clusterIP: None
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prefect-postgres
   namespace: prefect
-  labels:
-    app: prefect-postgres
 spec:
   replicas: 1
   selector:
@@ -18,46 +29,28 @@ spec:
       containers:
       - name: postgres
         image: postgres:15-alpine
-        ports:
-        - containerPort: 5432
-          name: postgres
         env:
         - name: POSTGRES_USER
           value: "prefect"
         - name: POSTGRES_PASSWORD
-          value: "prefect"
+          value: "prefect123"
         - name: POSTGRES_DB
           value: "prefect"
         - name: PGDATA
           value: "/var/lib/postgresql/data/pgdata"
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "100m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
+        ports:
+        - containerPort: 5432
         volumeMounts:
         - name: postgres-storage
           mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
       volumes:
       - name: postgres-storage
         persistentVolumeClaim:
           claimName: prefect-postgres-pvc
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: prefect-postgres
-  namespace: prefect
-  labels:
-    app: prefect-postgres
-spec:
-  type: ClusterIP
-  ports:
-  - port: 5432
-    targetPort: 5432
-    protocol: TCP
-    name: postgres
-  selector:
-    app: prefect-postgres

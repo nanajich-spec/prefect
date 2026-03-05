@@ -4,4 +4,3 @@ metadata:
   name: prefect
   labels:
     name: prefect
-    app: prefect
