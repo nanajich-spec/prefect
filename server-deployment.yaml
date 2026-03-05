@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefect-server
+  namespace: prefect
+  labels:
+    app: prefect-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prefect-server
+  template:
+    metadata:
+      labels:
+        app: prefect-server
+    spec:
+      serviceAccountName: prefect
+      initContainers:
+      - name: wait-for-postgres
+        image: postgres:15-alpine
+        command: 
+        - sh
+        - -c
+        - |
+          until pg_isready -h prefect-postgres -p 5432 -U prefect; do
+            echo "Waiting for PostgreSQL to be ready..."
+            sleep 2
+          done
+          echo "PostgreSQL is ready!"
+      containers:
+      - name: prefect-server
+        image: prefecthq/prefect:2-latest
+        command: ["prefect", "server", "start"]
+        ports:
+        - containerPort: 4200
+          name: http
+        env:
+        - name: PREFECT_SERVER_API_HOST
+          value: "0.0.0.0"
+        - name: PREFECT_SERVER_API_PORT
+          value: "4200"
+        - name: PREFECT_UI_ENABLED
+          value: "true"
+        - name: PREFECT_API_URL
+          value: "http://prefect-server:4200/api"
+        - name: PREFECT_API_DATABASE_CONNECTION_URL
+          value: "postgresql+asyncpg://prefect:prefect@prefect-postgres:5432/prefect"
+        - name: PREFECT_LOGGING_LEVEL
+          value: "INFO"
+        - name: PREFECT_UI_API_URL
+          value: "http://localhost:4200/api"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 4200
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 4200
+          initialDelaySeconds: 20
+          periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prefect-server
+  namespace: prefect
+  labels:
+    app: prefect-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 4200
+    targetPort: 4200
+    protocol: TCP
+    name: http
+  selector:
+    app: prefect-server

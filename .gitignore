@@ -1,0 +1,22 @@
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~
+
+# Secrets (DO NOT commit)
+*secret*.yaml
+*password*.yaml
+*.key
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

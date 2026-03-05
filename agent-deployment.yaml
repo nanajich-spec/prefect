@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prefect-agent
+  namespace: prefect
+  labels:
+    app: prefect-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prefect-agent
+  template:
+    metadata:
+      labels:
+        app: prefect-agent
+    spec:
+      serviceAccountName: prefect
+      containers:
+      - name: prefect-agent
+        image: prefecthq/prefect:2-latest
+        command: 
+        - sh
+        - -c
+        - |
+          # Wait for server to be ready
+          echo "Waiting for Prefect server to be ready..."
+          until curl -f http://prefect-server:4200/api/health; do
+            echo "Server not ready yet, sleeping..."
+            sleep 5
+          done
+          echo "Server is ready! Starting agent..."
+          
+          # Start the agent
+          prefect agent start -q default
+        env:
+        - name: PREFECT_API_URL
+          value: "http://prefect-server:4200/api"
+        - name: PREFECT_LOGGING_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
