@@ -23,15 +23,33 @@ spec:
         - sh
         - -c
         - |
-          # Wait for server to be ready
+          # Wait for server to be ready using Python (no curl needed)
           echo "Waiting for Prefect server to be ready..."
-          until curl -f http://prefect-server:4200/api/health; do
-            echo "Server not ready yet, sleeping..."
-            sleep 5
-          done
-          echo "Server is ready! Starting agent..."
+          python3 -c "
+          import time
+          import sys
+          try:
+              from prefect.client import get_client
+              max_retries = 30
+              for i in range(max_retries):
+                  try:
+                      with get_client(sync_client=True) as client:
+                          client.api.health_check()
+                      print('Server is ready!')
+                      sys.exit(0)
+                  except Exception as e:
+                      print(f'Server not ready yet (attempt {i+1}/{max_retries}), sleeping...: {e}')
+                      time.sleep(5)
+              print('Server failed to become ready')
+              sys.exit(1)
+          except Exception as e:
+              print(f'Error checking server health: {e}')
+              print('Starting agent anyway...')
+              sys.exit(0)
+          "
           
-          # Start the agent
+          # Start the agent with default work queue
+          echo "Starting Prefect agent..."
           prefect agent start -q default
         env:
         - name: PREFECT_API_URL
